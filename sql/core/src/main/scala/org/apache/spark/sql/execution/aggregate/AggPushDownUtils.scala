@@ -17,9 +17,11 @@
 
 package org.apache.spark.sql.execution.aggregate
 
+import scala.collection.mutable.ArrayBuffer
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Row, execution, sources}
+import org.apache.spark.sql.{execution, sources, Row}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -29,8 +31,6 @@ import org.apache.spark.sql.catalyst.plans.physical.UnknownPartitioning
 import org.apache.spark.sql.execution.{RowDataSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{DataSourceStrategy, LogicalRelation}
 import org.apache.spark.sql.sources._
-
-import scala.collection.mutable.ArrayBuffer
 
 object AggPushDownUtils extends Logging {
 
@@ -95,7 +95,7 @@ object AggPushDownUtils extends Logging {
         .flatMap(translateAggregateFunc)
       if(aggregateFunctions.isEmpty) return Nil
 
-      assert(output.length == groupingColumns.length+aggregateFunctions.length)
+      assert(output.length == groupingColumns.length + aggregateFunctions.length)
 
       val metadata: Map[String, String] = buildMetadata(
         groupingColumns, aggregateFunctions, pushedFilters)

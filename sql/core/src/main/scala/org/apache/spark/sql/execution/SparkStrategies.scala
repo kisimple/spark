@@ -253,7 +253,7 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
       case PhysicalAggregation(
           groupingExpressions, aggregateExpressions, resultExpressions, child) =>
 
-        if(conf.aggPushDown) {
+        if (conf.aggPushDown) {
           AggPushDownUtils.plan(
               groupingExpressions, aggregateExpressions, resultExpressions, child) match {
             case Some(sparkPlans) => return sparkPlans
