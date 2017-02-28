@@ -46,7 +46,7 @@ object AggUtils {
     ) :: Nil
   }
 
-  private def createAggregate(
+  private[aggregate] def createAggregate(
       requiredChildDistributionExpressions: Option[Seq[Expression]] = None,
       groupingExpressions: Seq[NamedExpression] = Nil,
       aggregateExpressions: Seq[AggregateExpression] = Nil,

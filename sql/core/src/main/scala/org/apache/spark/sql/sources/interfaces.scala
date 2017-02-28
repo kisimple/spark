@@ -280,6 +280,17 @@ trait PrunedFilteredScan {
 }
 
 /**
+ * A BaseRelation that can perform aggregations and filter using selected predicates
+ * before producing an RDD containing all matching tuples as Row objects.
+ *
+ */
+trait AggregatedFilteredScan {
+  def buildScan(groupingColumns: Array[String],
+      aggregateFunctions: Array[AggregateFunc],
+      filters: Array[Filter]): RDD[Row]
+}
+
+/**
  * A BaseRelation that can be used to insert data into it through the insert method.
  * If overwrite in insert method is true, the old data in the relation should be overwritten with
  * the new data. If overwrite in insert method is false, the new data should be appended.
