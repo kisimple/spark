@@ -95,7 +95,20 @@ object AggPushDownUtils extends Logging {
         .flatMap(translateAggregateFunc)
       if(aggregateFunctions.isEmpty) return Nil
 
-      assert(output.length == groupingColumns.length + aggregateFunctions.length)
+      if (output.length != groupingColumns.length + aggregateFunctions.length) {
+        logWarning(
+          s"""
+             |Plan pushed-down aggregate failed!
+             | Grouping expressions: ${groupingExpressions.mkString("; ")}
+             | Aggregate expressions: ${aggregateExpressions.mkString("; ")}
+             | Result expressions: ${resultExpressions.mkString("; ")}
+             | Output attributes: ${output.mkString("; ")}
+             | Grouping columns: ${groupingColumns.mkString("; ")}
+             | Translated aggregate functions: ${aggregateFunctions.mkString("; ")}
+           """.stripMargin
+        )
+        return Nil
+      }
 
       val metadata: Map[String, String] = buildMetadata(
         groupingColumns, aggregateFunctions, pushedFilters)
@@ -129,32 +142,87 @@ object AggPushDownUtils extends Logging {
 
   }
 
-  def translateAggregateFunc(func: AggregateFunction): Array[AggregateFunc] = {
-    func match {
-      case avg: aggregate.Average =>
-        Array(sources.Sum(avg.child.asInstanceOf[NamedExpression].name, avg.sumDataType),
-          sources.Count(avg.child.asInstanceOf[NamedExpression].name))
-      case aggregate.Sum(child) =>
-        Array(sources.Sum(child.asInstanceOf[NamedExpression].name, func.dataType))
-      case aggregate.Count(children) => children.head match {
-        case l: Literal => Array(sources.CountStar())
-        case ne: NamedExpression => Array(sources.Count(ne.name))
-        case _ =>
-          logWarning(s"Unexpected children type of aggregate.Count: ${children.mkString("; ")}")
-          Array.empty
-      }
-      case aggregate.Max(child) => Array(sources.Max(child.asInstanceOf[NamedExpression].name))
-      case aggregate.Min(child) => Array(sources.Min(child.asInstanceOf[NamedExpression].name))
-
-      case _ => Array.empty
+  def translateAverage(avg: aggregate.Average): Array[AggregateFunc] = avg.child match {
+    case ne: NamedExpression =>
+      Array(sources.Sum(ne.name, avg.sumDataType), sources.Count(ne.name))
+    case uv: UnscaledValue => uv.child match {
+      case ne: NamedExpression =>
+        Array(sources.Sum(ne.name, avg.sumDataType), sources.Count(ne.name))
+      case _ =>
+        logWarning(s"Unexpected child of aggregate.Average: ${avg.child}")
+        Array.empty
     }
+    case c: Cast => c.child match {
+      case ne: NamedExpression =>
+        Array(sources.Sum(ne.name, avg.sumDataType), sources.Count(ne.name))
+      case _ =>
+        logWarning(s"Unexpected child of aggregate.Average: ${avg.child}")
+        Array.empty
+    }
+    case _ =>
+      logWarning(s"Unexpected child of aggregate.Average: ${avg.child}")
+      Array.empty
+  }
+
+  def translateSum(sum: aggregate.Sum): Array[AggregateFunc] = sum.child match {
+    case ne: NamedExpression =>
+      Array(sources.Sum(ne.name, sum.dataType))
+    case c: Cast => c.child match {
+      case ne: NamedExpression =>
+        Array(sources.Sum(ne.name, sum.dataType))
+      case _ =>
+        logWarning(s"Unexpected child of aggregate.Sum: ${sum.child}")
+        Array.empty
+    }
+    case _ =>
+      logWarning(s"Unexpected child of aggregate.Sum: ${sum.child}")
+      Array.empty
+  }
+
+  def translateCount(count: aggregate.Count): Array[AggregateFunc] = count.children.head match {
+    case l: Literal => Array(sources.CountStar())
+    case ne: NamedExpression => Array(sources.Count(ne.name))
+    case _ =>
+      logWarning(s"Unexpected children of aggregate.Count: ${count.children.mkString("; ")}")
+      Array.empty
+  }
+
+  def translateMax(max: aggregate.Max): Array[AggregateFunc] = max.child match {
+    case ne: NamedExpression =>
+      Array(sources.Max(ne.name))
+    case _ =>
+      logWarning(s"Unexpected child of aggregate.Max: ${max.child}")
+      Array.empty
+  }
+
+  def translateMin(min: aggregate.Min): Array[AggregateFunc] = min.child match {
+    case ne: NamedExpression =>
+      Array(sources.Min(ne.name))
+    case _ =>
+      logWarning(s"Unexpected child of aggregate.Min: ${min.child}")
+      Array.empty
+  }
+
+  def translateAggregateFunc(func: AggregateFunction): Array[AggregateFunc] = func match {
+    case avg: aggregate.Average =>
+      translateAverage(avg)
+    case sum: aggregate.Sum =>
+      translateSum(sum)
+    case count: aggregate.Count =>
+      translateCount(count)
+    case max: aggregate.Max =>
+      translateMax(max)
+    case min: aggregate.Min =>
+      translateMin(min)
+    case _ =>
+      Array.empty
   }
 
   private def buildMetadata(groupingColumns: Array[String],
       aggregateFunctions: Seq[AggregateFunc],
       pushedFilters: Seq[Filter]): Map[String, String] = {
     val pairs = ArrayBuffer.empty[(String, String)]
-    // Mark filters which are handled by the underlying DataSource with an Astrisk
+    // Mark filters which are handled by the underlying DataSource with an Asterisk
     if (pushedFilters.nonEmpty) {
       val markedFilters = for (filter <- pushedFilters) yield {
         s"*$filter"
@@ -162,7 +230,7 @@ object AggPushDownUtils extends Logging {
       pairs += ("PushedFilters" -> markedFilters.mkString("[", ", ", "]"))
     }
     if (groupingColumns.nonEmpty) {
-      pairs += ("GroupingColumns" -> groupingColumns.mkString(", "))
+      pairs += ("GroupingColumns" -> groupingColumns.mkString("[", ", ", "]"))
     }
     pairs += ("AggregateFunctions" -> aggregateFunctions.mkString("[", ", ", "]"))
     pairs.toMap
