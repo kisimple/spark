@@ -253,6 +253,7 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
       case PhysicalAggregation(
           groupingExpressions, aggregateExpressions, resultExpressions, child) =>
 
+        // if we could push down aggregation into data sources
         if (conf.aggPushDown) {
           AggPushDownUtils.plan(
               groupingExpressions, aggregateExpressions, resultExpressions, child) match {

@@ -280,10 +280,13 @@ trait PrunedFilteredScan {
 }
 
 /**
- * A BaseRelation that can perform aggregations and filter using selected predicates
- * before producing an RDD containing all matching tuples as Row objects.
+ * A BaseRelation that can perform aggregation and filter using selected predicates.
  *
+ * Row fields MUST be as below:
+ * ([GroupingColumn1, GroupingColumn2 ... ,]
+ * AggregateFunction1Result[, AggregateFunction2Result ...])
  */
+@InterfaceStability.Unstable
 trait AggregatedFilteredScan {
   def buildScan(groupingColumns: Array[String],
       aggregateFunctions: Array[AggregateFunc],

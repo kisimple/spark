@@ -611,7 +611,7 @@ object SQLConf {
     .createWithDefault(false)
 
   val AGGREGATION_PUSHDOWN_ENABLED = SQLConfigBuilder("spark.sql.aggregation.pushdown")
-    .doc("Enables pushed-down aggregate function into data sources when set to true.")
+    .doc("Enables pushing down aggregate functions into data sources when set to true.")
     .booleanConf
     .createWithDefault(false)
 

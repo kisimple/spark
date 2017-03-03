@@ -106,8 +106,8 @@ case class SimpleAggregatedScan(from: Int, to: Int)(@transient val sparkSession:
       case GreaterThan("a", v: Int) => (a: Int) => a > v
       case GreaterThanOrEqual("a", v: Int) => (a: Int) => a >= v
       case In("a", values) => (a: Int) => values.map(_.asInstanceOf[Int]).toSet.contains(a)
-      case IsNull("a") => (a: Int) => false // Int can't be null
-      case IsNotNull("a") => (a: Int) => true
+      case IsNull("a") => (a: Int) => a == 7 // use 7 as NULL
+      case IsNotNull("a") => (a: Int) => a != 7
       case Not(pred) => (a: Int) => !translateFilterOnA(pred)(a)
       case And(left, right) => (a: Int) =>
         translateFilterOnA(left)(a) && translateFilterOnA(right)(a)
@@ -176,11 +176,14 @@ case class SimpleAggregatedScan(from: Int, to: Int)(@transient val sparkSession:
               case DoubleType => ar += java.lang.Double.valueOf(sum)
               case dt: DecimalType => ar += java.math.BigDecimal.valueOf(sum)
             }
-          case Count(c) =>
-            val i = columnIndex(c)
-            var count = 0
-            it.foreach { r => if (r(i) != null) count += 1 }
-            ar += java.lang.Long.valueOf(count)
+          case Count(c) => c match {
+            case "a" =>
+              var count = 0
+              it.foreach { r => if (r(0) != 7) count += 1 } // use 7 as NULL
+              ar += java.lang.Long.valueOf(count)
+            case _ =>
+              ar += java.lang.Long.valueOf(it.size)
+          }
           case CountStar() =>
             ar += java.lang.Long.valueOf(it.size)
           case Max(c) =>
@@ -239,9 +242,26 @@ class AggregatedScanSuite extends DataSourceTest with SharedSQLContext with Pred
       """.stripMargin)
   }
 
-  ///////////////////
-  // EMPTY GROUP BY
-  ///////////////////
+  //////////////////////////
+  // COUNT NULLABLE COLUMN
+  //////////////////////////
+
+  sqlTest(
+    "SELECT count(a) FROM oneToTenAggregated",
+    Seq(Row(java.lang.Long.valueOf(9))))
+
+  sqlTest(
+    "SELECT count(a) FROM oneToTenAggregated WHERE a IS NULL",
+    Seq(Row(java.lang.Long.valueOf(0))))
+
+  sqlTest(
+    "SELECT c, count(a) FROM oneToTenAggregated GROUP BY c ORDER BY c",
+    Seq(Row("aaaaaAAAAA", java.lang.Long.valueOf(5)),
+      Row("bbbbbBBBBB", java.lang.Long.valueOf(4))))
+
+  ///////////////////////////
+  // EMPTY GROUPING COLUMNS
+  ///////////////////////////
 
   sqlTest(
     "SELECT count(*) FROM oneToTenAggregated",
@@ -249,11 +269,11 @@ class AggregatedScanSuite extends DataSourceTest with SharedSQLContext with Pred
 
   sqlTest(
     "SELECT count(*) FROM oneToTenAggregated WHERE a IS NOT NULL",
-    Seq(Row(java.lang.Long.valueOf(10))))
+    Seq(Row(java.lang.Long.valueOf(9))))
 
   sqlTest(
     "SELECT count(*) FROM oneToTenAggregated WHERE a IS NULL",
-    Seq(Row(java.lang.Long.valueOf(0))))
+    Seq(Row(java.lang.Long.valueOf(1))))
 
   sqlTest(
     "SELECT count(*) FROM oneToTenAggregated WHERE a = 1",
@@ -273,7 +293,7 @@ class AggregatedScanSuite extends DataSourceTest with SharedSQLContext with Pred
 
   sqlTest(
     "SELECT count(*) FROM oneToTenAggregated WHERE NOT (a < 6)",
-    Seq(Row(java.lang.Long.valueOf(5))))
+    Seq(Row(java.lang.Long.valueOf(4))))
 
   sqlTest(
     "SELECT count(*) FROM oneToTenAggregated WHERE c like 'a%'",
@@ -293,11 +313,11 @@ class AggregatedScanSuite extends DataSourceTest with SharedSQLContext with Pred
 
   sqlTest(
     "SELECT sum(b) FROM oneToTenAggregated WHERE a IS NOT NULL",
-    Seq(Row(java.lang.Double.valueOf((1 to 10).sum))))
+    Seq(Row(java.lang.Double.valueOf((1 to 10).sum - 7))))
 
   sqlTest(
     "SELECT sum(d) FROM oneToTenAggregated WHERE a IS NULL GROUP BY c",
-    Seq.empty[Row])
+    Seq(Row(java.lang.Double.valueOf(7))))
 
   sqlTest(
     "SELECT sum(e) FROM oneToTenAggregated WHERE a = 1",
@@ -313,7 +333,7 @@ class AggregatedScanSuite extends DataSourceTest with SharedSQLContext with Pred
 
   sqlTest(
     "SELECT avg(d) FROM oneToTenAggregated WHERE NOT (a < 6)",
-    Seq(Row(java.lang.Double.valueOf(8))))
+    Seq(Row(java.lang.Double.valueOf((6 + 8 + 9 + 10) / 4d))))
 
   sqlTest(
     "SELECT avg(e) FROM oneToTenAggregated WHERE a < 3 OR a > 8",
@@ -409,11 +429,15 @@ class AggregatedScanSuite extends DataSourceTest with SharedSQLContext with Pred
       java.lang.Short.valueOf(if (i == 1) 9.toShort else 10.toShort ))))
 
   ////////////////////////
-  // GROUP BY ONE COLUMN
+  // ONE GROUPING COLUMN
   ////////////////////////
 
   sqlTest(
     "SELECT count(*) FROM oneToTenAggregated GROUP BY c",
+    Seq(1, 0).map(i => Row(java.lang.Long.valueOf(5))))
+
+  sqlTest(
+    "SELECT count(e) FROM oneToTenAggregated GROUP BY c",
     Seq(1, 0).map(i => Row(java.lang.Long.valueOf(5))))
 
   sqlTest(
@@ -439,7 +463,7 @@ class AggregatedScanSuite extends DataSourceTest with SharedSQLContext with Pred
   sqlTest(
     "SELECT avg(a) FROM oneToTenAggregated GROUP BY c",
     Seq(1, 0).map(i => Row(
-      java.lang.Double.valueOf((1 to 10).filter(n => n % 2 == i).sum / 5))))
+      java.lang.Double.valueOf((1 to 10).filter(n => n % 2 == i).sum / (if (i == 1) 4d else 5d)))))
 
   sqlTest(
     "SELECT avg(b) FROM oneToTenAggregated GROUP BY c",
@@ -533,7 +557,7 @@ class AggregatedScanSuite extends DataSourceTest with SharedSQLContext with Pred
   sqlTest(
     "SELECT avg(a), c FROM oneToTenAggregated GROUP BY c",
     Seq(1, 0).map(i => Row(
-      java.lang.Double.valueOf((1 to 10).filter(n => n % 2 == i).sum / 5),
+      java.lang.Double.valueOf((1 to 10).filter(n => n % 2 == i).sum / (if (i == 1) 4d else 5d)),
       (i + 'a').toChar.toString * 5 + (i + 'a').toChar.toString.toUpperCase * 5)))
 
   sqlTest(
@@ -610,17 +634,17 @@ class AggregatedScanSuite extends DataSourceTest with SharedSQLContext with Pred
       java.lang.Double.valueOf((1 to 10).filter(n => n % 2 == i).sum / 5d),
       (i + 'a').toChar.toString * 5 + (i + 'a').toChar.toString.toUpperCase * 5)))
 
-  /////////////
-  // FILTERED
-  /////////////
+  //////////////
+  // PREDICATE
+  //////////////
 
   sqlTest(
-    "SELECT count(*) FROM oneToTenAggregated WHERE a IS NOT NULL GROUP BY c",
-    Seq(1, 0).map(i => Row(java.lang.Long.valueOf(5))))
+    "SELECT count(*) FROM oneToTenAggregated WHERE a IS NOT NULL GROUP BY c ORDER BY c",
+    Seq(Row(java.lang.Long.valueOf(5)), Row(java.lang.Long.valueOf(4))))
 
   sqlTest(
     "SELECT count(*), c FROM oneToTenAggregated WHERE a IS NULL GROUP BY c",
-    Seq.empty[Row])
+    Seq(Row(java.lang.Long.valueOf(1), "bbbbbBBBBB")))
 
   sqlTest(
     "SELECT count(*) FROM oneToTenAggregated WHERE a = 1 GROUP BY c",
@@ -645,7 +669,7 @@ class AggregatedScanSuite extends DataSourceTest with SharedSQLContext with Pred
 
   sqlTest(
     "SELECT count(*), c FROM oneToTenAggregated WHERE NOT (a < 6) GROUP BY c ORDER BY c DESC",
-    Seq(Row(java.lang.Long.valueOf(2), "bbbbbBBBBB"),
+    Seq(Row(java.lang.Long.valueOf(1), "bbbbbBBBBB"),
       Row(java.lang.Long.valueOf(3), "aaaaaAAAAA")))
 
   sqlTest(
@@ -661,7 +685,7 @@ class AggregatedScanSuite extends DataSourceTest with SharedSQLContext with Pred
     Seq(Row(java.lang.Long.valueOf(5))))
 
   /////////////////////////
-  // GROUP BY TWO COLUMNS
+  // TWO GROUPING COLUMNS
   /////////////////////////
 
   sqlTest(
@@ -687,7 +711,7 @@ class AggregatedScanSuite extends DataSourceTest with SharedSQLContext with Pred
   // Should not pushing down when there are some unhandled filters
   testPlanFailed("SELECT count(*) FROM oneToTenAggregated WHERE b = 1")
 
-  // Cant pushing down unsupported aggregate function
+  // Cant pushing down unsupported aggregate functions
   testPlanFailed("SELECT first(a) FROM oneToTenAggregated GROUP BY c")
 
   def testPlanFailed(sql: String): Unit = {
