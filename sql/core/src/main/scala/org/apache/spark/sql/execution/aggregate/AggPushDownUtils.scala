@@ -51,7 +51,7 @@ object AggPushDownUtils extends Logging {
       return None
     }
 
-    // for now, we dont support pushing down of distinct aggregation
+    // For now, we dont support pushing down distinct aggregation
     if (functionsWithDistinct.isEmpty) {
       val sparkPlans = planAggregateWithoutDistinct(
         groupingExpressions,
@@ -78,7 +78,7 @@ object AggPushDownUtils extends Logging {
       }}
       val (_, pushedFilters, handledFilters) =
         DataSourceStrategy.selectFilters(relation.relation, candidatePredicates)
-      // If there are some unhandled filters, we cant perform pushed-down aggregation
+      // If there are some unhandled filters, pushed-down aggregation is not permitted
       if(pushedFilters.length != handledFilters.size) return Nil
 
       // 1. Create an Aggregate Operator for partial aggregations.
@@ -204,18 +204,12 @@ object AggPushDownUtils extends Logging {
   }
 
   def translateAggregateFunc(func: AggregateFunction): Array[AggregateFunc] = func match {
-    case avg: aggregate.Average =>
-      translateAverage(avg)
-    case sum: aggregate.Sum =>
-      translateSum(sum)
-    case count: aggregate.Count =>
-      translateCount(count)
-    case max: aggregate.Max =>
-      translateMax(max)
-    case min: aggregate.Min =>
-      translateMin(min)
-    case _ =>
-      Array.empty
+    case avg: aggregate.Average => translateAverage(avg)
+    case sum: aggregate.Sum => translateSum(sum)
+    case count: aggregate.Count => translateCount(count)
+    case max: aggregate.Max => translateMax(max)
+    case min: aggregate.Min => translateMin(min)
+    case _ => Array.empty
   }
 
   private def buildMetadata(groupingColumns: Array[String],

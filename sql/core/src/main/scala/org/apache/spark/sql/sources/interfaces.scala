@@ -283,7 +283,7 @@ trait PrunedFilteredScan {
  * A BaseRelation that can perform aggregation and filter using selected predicates.
  *
  * Row fields MUST be as below:
- * ([GroupingColumn1, GroupingColumn2 ... ,]
+ * ([GroupingColumn1[, GroupingColumn2 ...], ]
  * AggregateFunction1Result[, AggregateFunction2Result ...])
  */
 @InterfaceStability.Unstable
