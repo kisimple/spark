@@ -356,6 +356,9 @@ private[spark] class ApplicationMaster(
       dummyRunner.launchContextDebugInfo()
     }
 
+    //////////////////////////////////////////////////
+    //// 1. 注册 AM 并获取 YarnAllocator
+    //////////////////////////////////////////////////
     allocator = client.register(driverUrl,
       driverRef,
       yarnConf,
@@ -365,6 +368,9 @@ private[spark] class ApplicationMaster(
       securityMgr,
       localResources)
 
+    //////////////////////////////////////////////////
+    //// 2. YarnAllocator 分配 Executor
+    //////////////////////////////////////////////////
     allocator.allocateResources()
     reporterThread = launchReporterThread()
   }
@@ -381,9 +387,11 @@ private[spark] class ApplicationMaster(
       host: String,
       port: String,
       isClusterMode: Boolean): RpcEndpointRef = {
+    //// setupEndpointRef 会rpc校验endpoint是否存在
     val driverEndpoint = rpcEnv.setupEndpointRef(
       RpcAddress(host, port.toInt),
       YarnSchedulerBackend.ENDPOINT_NAME)
+    //// setupEndpoint 会在rpcEnv中注册endpoint
     amEndpoint =
       rpcEnv.setupEndpoint("YarnAM", new AMEndpoint(rpcEnv, driverEndpoint, isClusterMode))
     driverEndpoint
@@ -393,6 +401,8 @@ private[spark] class ApplicationMaster(
     addAmIpFilter()
     userClassThread = startUserApplication()
 
+    //// 等待获取 Driver 线程的 SparkContext
+    //// 由 YarnClusterScheduler#postStartHook 设置
     // This a bit hacky, but we need to wait until the spark.driver.port property has
     // been set by the Thread executing the user class.
     logInfo("Waiting for spark context initialization...")
@@ -753,6 +763,7 @@ object ApplicationMaster extends Logging {
     SignalUtils.registerLogger(log)
     val amArgs = new ApplicationMasterArguments(args)
 
+    //// --properties-file 会传递 __spark_conf__.properties
     // Load the properties file with the Spark configuration and set entries as system properties,
     // so that user code run inside the AM also has access to them.
     // Note: we must do this before SparkHadoopUtil instantiated

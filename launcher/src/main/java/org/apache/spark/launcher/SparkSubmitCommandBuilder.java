@@ -227,14 +227,31 @@ class SparkSubmitCommandBuilder extends AbstractCommandBuilder {
 
   private List<String> buildSparkSubmitCommand(Map<String, String> env)
       throws IOException, IllegalArgumentException {
+
+    ////////////////////////////////////////////////////////////
+    //// 1. 加载 --properties-file or spark-default.conf
+    ////////////////////////////////////////////////////////////
     // Load the properties file and check whether spark-submit will be running the app's driver
     // or just launching a cluster app. When running the driver, the JVM's argument will be
     // modified to cover the driver's configuration.
     Map<String, String> config = getEffectiveConfig();
+
+    //// SparkSubmit 是否运行 driver
     boolean isClientMode = isClientMode(config);
+
+    ////////////////////////////////////////////////////////////
+    //// 2. client 模式下添加 spark.driver.extraClassPath
+    ////////////////////////////////////////////////////////////
     String extraClassPath = isClientMode ? config.get(SparkLauncher.DRIVER_EXTRA_CLASSPATH) : null;
 
+    ////////////////////////////////////////////////////////////
+    //// 3. AbstractCommandBuilder#buildJavaCommand
+    ////////////////////////////////////////////////////////////
     List<String> cmd = buildJavaCommand(extraClassPath);
+
+    ////////////////////////////////////////////////////////////
+    //// 4. 添加几个由环境变量设置的 java option
+    ////////////////////////////////////////////////////////////
     // Take Thrift Server as daemon
     if (isThriftServer(mainClass)) {
       addOptionString(cmd, System.getenv("SPARK_DAEMON_JAVA_OPTS"));
@@ -252,6 +269,10 @@ class SparkSubmitCommandBuilder extends AbstractCommandBuilder {
       throw new IllegalArgumentException(msg);
     }
 
+    ////////////////////////////////////////////////////////////
+    //// 5. client 模式下 添加 spark.driver.memory
+    ////    以及 spark.driver.extraJavaOptions
+    ////////////////////////////////////////////////////////////
     if (isClientMode) {
       // Figuring out where the memory value come from is a little tricky due to precedence.
       // Precedence is observed in the following order:
@@ -267,11 +288,17 @@ class SparkSubmitCommandBuilder extends AbstractCommandBuilder {
         System.getenv("SPARK_DRIVER_MEMORY"), System.getenv("SPARK_MEM"), DEFAULT_MEM);
       cmd.add("-Xmx" + memory);
       addOptionString(cmd, driverExtraJavaOptions);
+      //// LD_LIBRARY_PATH 以及 spark.driver.extraLibraryPath
       mergeEnvPathList(env, getLibPathEnvName(),
         config.get(SparkLauncher.DRIVER_EXTRA_LIBRARY_PATH));
     }
 
+    //// 添加 -XX:MaxPermSize
     addPermGenSizeOpt(cmd);
+
+    ////////////////////////////////////////////////////////////
+    //// 6. 添加 SparkSubmit 及其参数
+    ////////////////////////////////////////////////////////////
     cmd.add("org.apache.spark.deploy.SparkSubmit");
     cmd.addAll(buildSparkSubmitArgs());
     return cmd;

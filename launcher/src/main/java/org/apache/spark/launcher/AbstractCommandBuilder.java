@@ -91,6 +91,9 @@ abstract class AbstractCommandBuilder {
     List<String> cmd = new ArrayList<>();
     String envJavaHome;
 
+    //////////////////////////////////////////////////
+    //// 1. 添加 java 命令
+    //////////////////////////////////////////////////
     if (javaHome != null) {
       cmd.add(join(File.separator, javaHome, "bin", "java"));
     } else if ((envJavaHome = System.getenv("JAVA_HOME")) != null) {
@@ -99,6 +102,9 @@ abstract class AbstractCommandBuilder {
         cmd.add(join(File.separator, System.getProperty("java.home"), "bin", "java"));
     }
 
+    //////////////////////////////////////////////////
+    //// 2. 使用 conf/java-opts 添加 java option
+    //////////////////////////////////////////////////
     // Load extra JAVA_OPTS from conf/java-opts, if it exists.
     File javaOpts = new File(join(File.separator, getConfDir(), "java-opts"));
     if (javaOpts.isFile()) {
@@ -114,6 +120,9 @@ abstract class AbstractCommandBuilder {
       }
     }
 
+    //////////////////////////////////////////////////
+    //// 3. 添加 classpath
+    //////////////////////////////////////////////////
     cmd.add("-cp");
     cmd.add(join(File.pathSeparator, buildClassPath(extraClassPath)));
     return cmd;
@@ -133,12 +142,16 @@ abstract class AbstractCommandBuilder {
    * specifically, with trailing slashes for directories).
    */
   List<String> buildClassPath(String appClassPath) throws IOException {
+    //// ${SPARK_HOME}
     String sparkHome = getSparkHome();
 
     List<String> cp = new ArrayList<>();
-    addToClassPath(cp, getenv("SPARK_CLASSPATH"));
-    addToClassPath(cp, appClassPath);
 
+    //// ${SPARK_CLASSPATH}
+    addToClassPath(cp, getenv("SPARK_CLASSPATH"));
+    //// extra classpath
+    addToClassPath(cp, appClassPath);
+    //// ${SPARK_CONF_DIR} or ${SPARK_HOME}/conf
     addToClassPath(cp, getConfDir());
 
     boolean prependClasses = !isEmpty(getenv("SPARK_PREPEND_CLASSES"));
@@ -194,11 +207,16 @@ abstract class AbstractCommandBuilder {
     boolean isTestingSql = "1".equals(getenv("SPARK_SQL_TESTING"));
     String jarsDir = findJarsDir(getSparkHome(), getScalaVersion(), !isTesting && !isTestingSql);
     if (jarsDir != null) {
+      //// ${SPARK_HOME}/jars/*
+      //// 或者 ${SPARK_HOME}/assembly/target/scala-${SPARK_SCALA_VERSION}/jars/*
       addToClassPath(cp, join(File.separator, jarsDir, "*"));
     }
 
+    //// ${HADOOP_CONF_DIR}
     addToClassPath(cp, getenv("HADOOP_CONF_DIR"));
+    //// ${YARN_CONF_DIR}
     addToClassPath(cp, getenv("YARN_CONF_DIR"));
+    //// ${SPARK_DIST_CLASSPATH}
     addToClassPath(cp, getenv("SPARK_DIST_CLASSPATH"));
     return cp;
   }

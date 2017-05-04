@@ -117,8 +117,10 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
     // Use common defaults file, if not specified by user
     propertiesFile = Option(propertiesFile).getOrElse(Utils.getDefaultPropertiesFile(env))
     // Honor --conf before the defaults file
+    //// defaultSparkProperties 是 spark-default.conf 的配置
     defaultSparkProperties.foreach { case (k, v) =>
       if (!sparkProperties.contains(k)) {
+        //// sparkProperties 则是用 --conf 覆盖 spark-default.conf 的配置
         sparkProperties(k) = v
       }
     }
@@ -140,6 +142,17 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
    * Load arguments from environment variables, Spark properties etc.
    */
   private def loadEnvironmentArguments(): Unit = {
+    //// 可使用的环境变量有
+    //// ${MASTER} ${DEPLOY_MODE}
+    //// ${SPARK_DRIVER_MEMORY}
+    //// ${SPARK_EXECUTOR_MEMORY} ${SPARK_EXECUTOR_CORES}
+    //// ${SPARK_YARN_APP_NAME}
+
+    //// 从 sparkProperties 读取配置
+    //// 由于 handle 先执行所以部分参数已被设置
+
+    //// 例如使用了 --master
+    //// 则此时 Option(master) 不为 None
     master = Option(master)
       .orElse(sparkProperties.get("spark.master"))
       .orElse(env.get("MASTER"))

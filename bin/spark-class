@@ -21,8 +21,14 @@ if [ -z "${SPARK_HOME}" ]; then
   source "$(dirname "$0")"/find-spark-home
 fi
 
+#######################################
+#### 1. load-spark-env.sh
+#######################################
 . "${SPARK_HOME}"/bin/load-spark-env.sh
 
+#######################################
+#### 2. 使用 JAVA_HOME 设置 RUNNER
+#######################################
 # Find the java binary
 if [ -n "${JAVA_HOME}" ]; then
   RUNNER="${JAVA_HOME}/bin/java"
@@ -35,6 +41,9 @@ else
   fi
 fi
 
+#######################################
+#### 3. 设置 LAUNCH_CLASSPATH
+#######################################
 # Find Spark jars.
 if [ -d "${SPARK_HOME}/jars" ]; then
   SPARK_JARS_DIR="${SPARK_HOME}/jars"

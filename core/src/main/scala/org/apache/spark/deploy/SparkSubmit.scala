@@ -662,6 +662,7 @@ object SparkSubmit {
       childMainClass: String,
       verbose: Boolean): Unit = {
     // scalastyle:off println
+    //// --verbose
     if (verbose) {
       printStream.println(s"Main class:\n$childMainClass")
       printStream.println(s"Arguments:\n${childArgs.mkString("\n")}")
@@ -671,6 +672,9 @@ object SparkSubmit {
     }
     // scalastyle:on println
 
+    //////////////////////////////////////////////////
+    //// 1. 设置当前线程上下文的 classloader
+    //////////////////////////////////////////////////
     val loader =
       if (sysProps.getOrElse("spark.driver.userClassPathFirst", "false").toBoolean) {
         new ChildFirstURLClassLoader(new Array[URL](0),
@@ -681,16 +685,26 @@ object SparkSubmit {
       }
     Thread.currentThread.setContextClassLoader(loader)
 
+    //////////////////////////////////////////////////
+    //// 2. 设置 classpath
+    //////////////////////////////////////////////////
     for (jar <- childClasspath) {
       addJarToClasspath(jar, loader)
     }
 
+    //////////////////////////////////////////////////
+    //// 3. 设置 System Properties
+    ////    SparkConf 会使用 System Properties 来初始化
+    //////////////////////////////////////////////////
     for ((key, value) <- sysProps) {
       System.setProperty(key, value)
     }
 
     var mainClass: Class[_] = null
 
+    //////////////////////////////////////////////////
+    //// 4. 加载 Main Class
+    //////////////////////////////////////////////////
     try {
       mainClass = Utils.classForName(childMainClass)
     } catch {
@@ -719,6 +733,9 @@ object SparkSubmit {
       printWarning("Subclasses of scala.App may not work correctly. Use a main() method instead.")
     }
 
+    //////////////////////////////////////////////////
+    //// 5. 调用 main 方法
+    //////////////////////////////////////////////////
     val mainMethod = mainClass.getMethod("main", new Array[String](0).getClass)
     if (!Modifier.isStatic(mainMethod.getModifiers)) {
       throw new IllegalStateException("The main method in the given main class must be static")

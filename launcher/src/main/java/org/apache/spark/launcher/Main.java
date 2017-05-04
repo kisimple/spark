@@ -84,9 +84,13 @@ class Main {
 
     Map<String, String> env = new HashMap<>();
     List<String> cmd = builder.buildCommand(env);
+
+    //// export SPARK_PRINT_LAUNCH_COMMAND=1
     if (printLaunchCommand) {
       System.err.println("Spark Command: " + join(" ", cmd));
       System.err.println("========================================");
+      // Spark Command: /usr/java/jdk1.8.0_77/jre/bin/java -cp /usr/hdp/2.2.0.0-2041/spark-2.1.0-bin-hadoop2.7/conf/:/usr/hdp/2.2.0.0-2041/spark-2.1.0-bin-hadoop2.7/jars/*:/etc/hadoop/conf/
+      //   org.apache.spark.deploy.SparkSubmit --master yarn --deploy-mode cluster --class org.apache.spark.examples.SparkPi examples/jars/spark-examples_2.11-2.1.0.jar 10
     }
 
     if (isWindows()) {
