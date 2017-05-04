@@ -834,6 +834,9 @@ object SparkSession {
      * @since 2.0.0
      */
     def getOrCreate(): SparkSession = synchronized {
+      //////////////////////////////////////////////////
+      //// 1. 获取 thread local session
+      //////////////////////////////////////////////////
       // Get the session from current thread's active session.
       var session = activeThreadSession.get()
       if ((session ne null) && !session.sparkContext.isStopped) {
@@ -844,8 +847,12 @@ object SparkSession {
         return session
       }
 
+      //// 全局锁
       // Global synchronization so we will only set the default session once.
       SparkSession.synchronized {
+        //////////////////////////////////////////////////
+        //// 2. 获取 global session
+        //////////////////////////////////////////////////
         // If the current thread does not have an active session, get it from the global session.
         session = defaultSession.get()
         if ((session ne null) && !session.sparkContext.isStopped) {
@@ -856,6 +863,9 @@ object SparkSession {
           return session
         }
 
+        //////////////////////////////////////////////////
+        //// 3. 获取 SparkContext
+        //////////////////////////////////////////////////
         // No active nor global default session. Create a new one.
         val sparkContext = userSuppliedContext.getOrElse {
           // set app name if not given
@@ -874,8 +884,16 @@ object SparkSession {
           }
           sc
         }
+
+        //////////////////////////////////////////////////
+        //// 4. 创建新的 session
+        //////////////////////////////////////////////////
         session = new SparkSession(sparkContext)
         options.foreach { case (k, v) => session.sessionState.conf.setConfString(k, v) }
+
+        //////////////////////////////////////////////////
+        //// 5. 设置 global session
+        //////////////////////////////////////////////////
         defaultSession.set(session)
 
         // Register a successfully instantiated context to the singleton. This should be at the

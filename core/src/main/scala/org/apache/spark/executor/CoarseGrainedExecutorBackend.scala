@@ -59,12 +59,14 @@ private[spark] class CoarseGrainedExecutorBackend(
     rpcEnv.asyncSetupEndpointRefByURI(driverUrl).flatMap { ref =>
       // This is a very fast action so we can use "ThreadUtils.sameThread"
       driver = Some(ref)
+      //// 给 driver 发送 RegisterExecutor 请求
       ref.ask[Boolean](RegisterExecutor(executorId, self, hostname, cores, extractLogUrls))
     }(ThreadUtils.sameThread).onComplete {
       // This is a very fast action so we can use "ThreadUtils.sameThread"
       case Success(msg) =>
         // Always receive `true`. Just ignore it
       case Failure(e) =>
+        //// RegisterExecutor 请求失败则 System.exit
         exitExecutor(1, s"Cannot register with driver: $driverUrl", e, notifyDriver = false)
     }(ThreadUtils.sameThread)
   }
@@ -189,6 +191,10 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
       // Debug code
       Utils.checkHost(hostname)
 
+      ////////////////////////////////////////////////////////////
+      //// 1. 发送 RetrieveSparkAppConfig 请求
+      ////    给 CoarseGrainedSchedulerBackend 获取 driver 的配置
+      ////////////////////////////////////////////////////////////
       // Bootstrap to fetch the driver's Spark properties.
       val executorConf = new SparkConf
       val port = executorConf.getInt("spark.executor.port", 0)
@@ -204,6 +210,9 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
       val props = cfg.sparkProperties ++ Seq[(String, String)](("spark.app.id", appId))
       fetcher.shutdown()
 
+      ////////////////////////////////////////////////////////////
+      //// 2. 利用获取的配置创建 ExecutorEnv
+      ////////////////////////////////////////////////////////////
       // Create SparkEnv using properties we fetched from the driver.
       val driverConf = new SparkConf()
       for ((key, value) <- props) {
@@ -223,6 +232,10 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
       val env = SparkEnv.createExecutorEnv(
         driverConf, executorId, hostname, port, cores, cfg.ioEncryptionKey, isLocal = false)
 
+      ////////////////////////////////////////////////////////////
+      //// 3. 设置 CoarseGrainedExecutorBackend 为 Endpoint
+      ////    CoarseGrainedExecutorBackend 启动并开始接收消息
+      ////////////////////////////////////////////////////////////
       env.rpcEnv.setupEndpoint("Executor", new CoarseGrainedExecutorBackend(
         env.rpcEnv, driverUrl, executorId, hostname, cores, userClassPath, env))
       workerUrl.foreach { url =>

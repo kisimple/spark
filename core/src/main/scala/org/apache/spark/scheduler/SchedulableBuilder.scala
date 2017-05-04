@@ -34,6 +34,9 @@ import org.apache.spark.util.Utils
 private[spark] trait SchedulableBuilder {
   def rootPool: Pool
 
+  //// FAIR 模式下才支持将 job 用 Pool 来分组
+  //// 不同 Pool 可以有不同的 weight 和 minShare
+  //// 还可以有不同的 schedulingMode
   def buildPools(): Unit
 
   def addTaskSetManager(manager: Schedulable, properties: Properties): Unit

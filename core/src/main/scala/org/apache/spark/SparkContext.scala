@@ -2488,6 +2488,13 @@ object SparkContext extends Logging {
     // When running locally, don't try to re-execute tasks on failure.
     val MAX_LOCAL_TASK_FAILURES = 1
 
+    ///////////////////////////////////////////////////////////
+    //// 不同模式使用不同的 SchedulerBackend
+    //// 1. LocalSchedulerBackend
+    //// 2. StandaloneSchedulerBackend
+    //// 3. Yarn[Client/Cluster]SchedulerBackend
+    //// 4. Mesos[CoarseGrained/FineGrained]SchedulerBackend
+    ///////////////////////////////////////////////////////////
     master match {
       case "local" =>
         val scheduler = new TaskSchedulerImpl(sc, MAX_LOCAL_TASK_FAILURES, isLocal = true)
@@ -2544,6 +2551,9 @@ object SparkContext extends Logging {
         }
         (backend, scheduler)
 
+      //////////////////////////////////////////////////
+      //// 使用 ExternalClusterManager 来创建
+      //////////////////////////////////////////////////
       case masterUrl =>
         val cm = getClusterManager(masterUrl) match {
           case Some(clusterMgr) => clusterMgr
@@ -2564,6 +2574,8 @@ object SparkContext extends Logging {
 
   private def getClusterManager(url: String): Option[ExternalClusterManager] = {
     val loader = Utils.getContextOrSparkClassLoader
+    //// ServiceLoader 加载 org.apache.spark.scheduler.ExternalClusterManager
+    //// 并调用 ExternalClusterManager#canCreate 过滤
     val serviceLoaders =
       ServiceLoader.load(classOf[ExternalClusterManager], loader).asScala.filter(_.canCreate(url))
     if (serviceLoaders.size > 1) {
