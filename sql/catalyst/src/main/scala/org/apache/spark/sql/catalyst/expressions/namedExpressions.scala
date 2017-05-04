@@ -171,7 +171,7 @@ case class Alias(child: Expression, name: String)(
     }
   }
 
-  override def toString: String = s"$child AS $name#${exprId.id}$typeSuffix"
+  override def toString: String = s"Alias[$child AS $name#${exprId.id}$typeSuffix]"
 
   override protected final def otherCopyArgs: Seq[AnyRef] = {
     exprId :: qualifier :: explicitMetadata :: isGenerated :: Nil
@@ -309,7 +309,7 @@ case class AttributeReference(
     ""
   }
 
-  override def toString: String = s"$name#${exprId.id}$typeSuffix$delaySuffix"
+  override def toString: String = s"AttributeReference[$name#${exprId.id}$typeSuffix$delaySuffix]"
 
   // Since the expression id is not in the first constructor it is missing from the default
   // tree string.

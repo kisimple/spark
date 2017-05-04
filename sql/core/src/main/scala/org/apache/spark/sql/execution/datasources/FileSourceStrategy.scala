@@ -51,6 +51,7 @@ import org.apache.spark.sql.execution.SparkPlan
  */
 object FileSourceStrategy extends Strategy with Logging {
   def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
+    //// 处理 Project -> Filter -> Relation
     case PhysicalOperation(projects, filters,
       l @ LogicalRelation(fsRelation: HadoopFsRelation, _, table)) =>
       // Filters on this relation fall into four categories based on where we can use them to avoid
@@ -117,6 +118,7 @@ object FileSourceStrategy extends Strategy with Logging {
       val afterScanFilter = afterScanFilters.toSeq.reduceOption(expressions.And)
       val withFilter = afterScanFilter.map(execution.FilterExec(_, scan)).getOrElse(scan)
       val withProjections = if (projects == withFilter.output) {
+        //// 不需要 ProjectExec
         withFilter
       } else {
         execution.ProjectExec(projects, withFilter)

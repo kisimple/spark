@@ -405,12 +405,24 @@ object DataSourceStrategy extends Strategy with Logging {
     filterPredicates: Seq[Expression],
     scanBuilder: (Seq[Attribute], Seq[Expression], Seq[Filter]) => RDD[InternalRow]): SparkPlan = {
 
+    // System.err.println(s"============================================================")
+    // System.err.println(s"projects=$projects")
+    // System.err.println(s"filterPredicates=$filterPredicates")
+
+    //////////////////////////////////////////////////
+    //// AttributeSet 大小写不敏感 通过 exprId 区分
+    //////////////////////////////////////////////////
     val projectSet = AttributeSet(projects.flatMap(_.references))
     val filterSet = AttributeSet(filterPredicates.flatMap(_.references))
+
+    // System.err.println(s"projectSet=$projectSet")
+    // System.err.println(s"filterSet=$filterSet")
 
     val candidatePredicates = filterPredicates.map { _ transform {
       case a: AttributeReference => relation.attributeMap(a) // Match original case of attributes.
     }}
+
+    // System.err.println(s"candidatePredicates=$candidatePredicates")
 
     val (unhandledPredicates, pushedFilters, handledFilters) =
       selectFilters(relation.relation, candidatePredicates)
@@ -421,6 +433,9 @@ object DataSourceStrategy extends Strategy with Logging {
       val handledPredicates = filterPredicates.filterNot(unhandledPredicates.contains)
       val unhandledSet = AttributeSet(unhandledPredicates.flatMap(_.references))
       AttributeSet(handledPredicates.flatMap(_.references)) --
+        ////////////////////////////////////////////////////////////
+        //// 例如数据源可以处理 col > 1 但是不能处理 col in (1, 3)
+        ////////////////////////////////////////////////////////////
         (projectSet ++ unhandledSet).map(relation.attributeMap)
     }
 
@@ -446,8 +461,10 @@ object DataSourceStrategy extends Strategy with Logging {
     }
 
     if (projects.map(_.toAttribute) == projects &&
+        //// 假如 SELECT a, b, a 则不相等
         projectSet.size == projects.size &&
         filterSet.subsetOf(projectSet)) {
+      //// 不需要 ProjectExec
       // When it is possible to just use column pruning to get the right projection and
       // when the columns of this projection are enough to evaluate all filter conditions,
       // just do a scan followed by a filter, with no extra project.
@@ -456,16 +473,18 @@ object DataSourceStrategy extends Strategy with Logging {
         .asInstanceOf[Seq[Attribute]]
         // Match original case of attributes.
         .map(relation.attributeMap)
+        //// 这一步似乎没有必要？
         // Don't request columns that are only referenced by pushed filters.
         .filterNot(handledSet.contains)
 
       val scan = RowDataSourceScanExec(
-        projects.map(_.toAttribute),
+        projects.map(_.toAttribute), //// 可以直接使用 requestedColumns?
         scanBuilder(requestedColumns, candidatePredicates, pushedFilters),
         relation.relation, UnknownPartitioning(0), metadata,
         relation.catalogTable.map(_.identifier))
       filterCondition.map(execution.FilterExec(_, scan)).getOrElse(scan)
     } else {
+      //// 需要 ProjectExec
       // Don't request columns that are only referenced by pushed filters.
       val requestedColumns =
         (projectSet ++ filterSet -- handledSet).map(relation.attributeMap).toSeq

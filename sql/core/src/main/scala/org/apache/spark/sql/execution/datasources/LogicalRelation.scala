@@ -77,6 +77,8 @@ case class LogicalRelation(
       Statistics(sizeInBytes = relation.sizeInBytes))
   }
 
+  //// SparkSQL 查询字段大小写不敏感
+  //// 例如 SELECT a, b, c ... 等价于 SELECT A, b, C ...
   /** Used to lookup original attribute capitalization */
   val attributeMap: AttributeMap[AttributeReference] = AttributeMap(output.map(o => (o, o)))
 

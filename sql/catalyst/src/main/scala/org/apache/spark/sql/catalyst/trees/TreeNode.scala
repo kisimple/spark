@@ -461,16 +461,19 @@ abstract class TreeNode[BaseType <: TreeNode[BaseType]] extends Product {
     case tn: TreeNode[_] => tn.simpleString :: Nil
     case seq: Seq[Any] if seq.toSet.subsetOf(allChildren.asInstanceOf[Set[Any]]) => Nil
     case iter: Iterable[_] if iter.isEmpty => Nil
+    //// Seq 类型的参数用 [] 括起来
     case seq: Seq[_] => Utils.truncatedString(seq, "[", ", ", "]") :: Nil
+    //// Set 类型的参数用 {} 括起来
     case set: Set[_] => Utils.truncatedString(set.toSeq, "{", ", ", "}") :: Nil
     case array: Array[_] if array.isEmpty => Nil
+    //// Array 类型的参数用 [] 括起来
     case array: Array[_] => Utils.truncatedString(array, "[", ", ", "]") :: Nil
     case null => Nil
     case None => Nil
     case Some(null) => Nil
     case Some(any) => any :: Nil
     case other => other :: Nil
-  }.mkString(", ")
+  }.mkString(", ") //// 多个参数用逗号分割
 
   /** ONE line description of this node. */
   def simpleString: String = s"$nodeName $argString".trim

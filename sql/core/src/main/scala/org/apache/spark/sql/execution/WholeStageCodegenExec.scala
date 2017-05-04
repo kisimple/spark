@@ -255,7 +255,7 @@ case class InputAdapter(child: SparkPlan) extends UnaryExecNode with CodegenSupp
       builder: StringBuilder,
       verbose: Boolean,
       prefix: String = ""): StringBuilder = {
-    child.generateTreeString(depth, lastChildren, builder, verbose, "")
+    child.generateTreeString(depth, lastChildren, builder, verbose, "[IA]")
   }
 }
 
@@ -351,10 +351,22 @@ case class WholeStageCodegenExec(child: SparkPlan) extends UnaryExecNode with Co
   }
 
   override def doExecute(): RDD[InternalRow] = {
+    //////////////////////////////////////////////////
+    //// 1. Code Generation
+    //////////////////////////////////////////////////
     val (ctx, cleanedSource) = doCodeGen()
     // try to compile and fallback if it failed
     try {
       CodeGenerator.compile(cleanedSource)
+      //// val clazz = CodeGenerator.compile(cleanedSource)
+      //// println(clazz.getClass)
+      //// class org.apache.spark.sql.catalyst.expressions.GeneratedClass
+
+      //// println(clazz.getClass.getGenericSuperclass)
+      //// class org.apache.spark.sql.catalyst.expressions.codegen.GeneratedClass
+
+      //// println(clazz.getClass.getProtectionDomain.getCodeSource.getLocation)
+      //// file:/D:/repo/org/codehaus/janino/janino/3.0.0/janino-3.0.0.jar
     } catch {
       case e: Exception if !Utils.isTesting && sqlContext.conf.wholeStageFallback =>
         // We should already saw the error message
@@ -365,12 +377,22 @@ case class WholeStageCodegenExec(child: SparkPlan) extends UnaryExecNode with Co
 
     val durationMs = longMetric("pipelineTime")
 
+    //////////////////////////////////////////////////
+    //// 2. 获取 DataSource RDD
+    ////    例如 RowDataSourceScanExec#inputRDDs
+    //////////////////////////////////////////////////
     val rdds = child.asInstanceOf[CodegenSupport].inputRDDs()
+
+    //////////////////////////////////////////////////
+    //// 3. 对 DataSource RDD 应用 CodeGen 代码
+    ////    生成 MapPartitionsRDD
+    //////////////////////////////////////////////////
     assert(rdds.size <= 2, "Up to two input RDDs can be supported")
     if (rdds.length == 1) {
       rdds.head.mapPartitionsWithIndex { (index, iter) =>
         val clazz = CodeGenerator.compile(cleanedSource)
         val buffer = clazz.generate(references).asInstanceOf[BufferedRowIterator]
+        //// 传入原始 iterator
         buffer.init(index, Array(iter))
         new Iterator[InternalRow] {
           override def hasNext: Boolean = {
@@ -429,7 +451,7 @@ case class WholeStageCodegenExec(child: SparkPlan) extends UnaryExecNode with Co
       builder: StringBuilder,
       verbose: Boolean,
       prefix: String = ""): StringBuilder = {
-    child.generateTreeString(depth, lastChildren, builder, verbose, "*")
+    child.generateTreeString(depth, lastChildren, builder, verbose, "[CG]")
   }
 }
 

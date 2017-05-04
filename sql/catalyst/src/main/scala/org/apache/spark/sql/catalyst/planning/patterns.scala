@@ -39,7 +39,9 @@ object PhysicalOperation extends PredicateHelper {
 
   def unapply(plan: LogicalPlan): Option[ReturnType] = {
     val (fields, filters, child, _) = collectProjectsAndFilters(plan)
-    Some((fields.getOrElse(child.output), filters, child))
+    //// 即使只有 Filter -> Relation 时，projects 也不会为空
+    //// 此时 projects 为 Relation.output
+    Some((fields.getOrElse(child.output)/*projects*/, filters, child))
   }
 
   /**

@@ -61,6 +61,7 @@ case class HashAggregateExec(
     "spillSize" -> SQLMetrics.createSizeMetric(sparkContext, "spill size"),
     "aggTime" -> SQLMetrics.createTimingMetric(sparkContext, "aggregate time"))
 
+  //// resultExpressions 包含 groupingAttribute
   override def output: Seq[Attribute] = resultExpressions.map(_.toAttribute)
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
@@ -71,8 +72,10 @@ case class HashAggregateExec(
     AttributeSet(aggregateBufferAttributes)
 
   override def requiredChildDistribution: List[Distribution] = {
+    //// groupingAttributes
     requiredChildDistributionExpressions match {
       case Some(exprs) if exprs.isEmpty => AllTuples :: Nil
+      //// exprs 的值相同的数据会在相同的分区
       case Some(exprs) if exprs.nonEmpty => ClusteredDistribution(exprs) :: Nil
       case None => UnspecifiedDistribution :: Nil
     }

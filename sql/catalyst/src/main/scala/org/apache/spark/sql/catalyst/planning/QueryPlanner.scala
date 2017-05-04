@@ -58,9 +58,17 @@ abstract class QueryPlanner[PhysicalPlan <: TreeNode[PhysicalPlan]] {
   def plan(plan: LogicalPlan): Iterator[PhysicalPlan] = {
     // Obviously a lot to do here still...
 
+    //////////////////////////////////////////////////////////////////////
+    //// GenericStrategy#apply 返回结果是 Seq[PhysicalPlan]
+    //// 所以 candidates 的类型为 Iterator[PhysicalPlan]
+    //////////////////////////////////////////////////////////////////////
     // Collect physical plan candidates.
     val candidates = strategies.iterator.flatMap(_(plan))
 
+    //////////////////////////////////////////////////////////////////////
+    //// plans 的类型也是 Iterator[PhysicalPlan]
+    //// 而 candidate 的类型是 PhysicalPlan
+    //////////////////////////////////////////////////////////////////////
     // The candidates may contain placeholders marked as [[planLater]],
     // so try to replace them by their child plans.
     val plans = candidates.flatMap { candidate =>
@@ -73,6 +81,9 @@ abstract class QueryPlanner[PhysicalPlan <: TreeNode[PhysicalPlan]] {
         // Plan the logical plan marked as [[planLater]] and replace the placeholders.
         placeholders.iterator.foldLeft(Iterator(candidate)) {
           case (candidatesWithPlaceholders, (placeholder, logicalPlan)) =>
+            ////////////////////////////////////////////////////////////
+            //// 对 PlanLater(logicalPlan) 递归 plan
+            ////////////////////////////////////////////////////////////
             // Plan the logical plan for the placeholder.
             val childPlans = this.plan(logicalPlan)
 

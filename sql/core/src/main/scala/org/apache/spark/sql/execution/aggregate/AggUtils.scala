@@ -84,6 +84,14 @@ object AggUtils {
       child: SparkPlan): Seq[SparkPlan] = {
     // Check if we can use HashAggregate.
 
+    //// SELECT count(*), avg(age), gender FROM people GROUP BY gender LIMIT 20
+//    println(s"groupingExpressions: ${groupingExpressions.mkString(", ")}")
+//    println(s"aggregateExpressions: ${aggregateExpressions.mkString(", ")}")
+//    println(s"resultExpressions: ${resultExpressions.mkString(", ")}")
+    // groupingExpressions: gender#1
+    // aggregateExpressions: count(1), avg(age#0L)
+    // resultExpressions: count(1)#8L AS count(1)#10L, avg(age#0L)#9 AS avg(age)#11, gender#1
+
     // 1. Create an Aggregate Operator for partial aggregations.
 
     val groupingAttributes = groupingExpressions.map(_.toAttribute)
@@ -93,6 +101,22 @@ object AggUtils {
     val partialResultExpressions =
       groupingAttributes ++
         partialAggregateExpressions.flatMap(_.aggregateFunction.inputAggBufferAttributes)
+
+//    println(
+//      s"""
+//         |Partial
+//         |  requiredChildDistributionExpressions = None,
+//         |  groupingExpressions = ${groupingExpressions.mkString(", ")},
+//         |  aggregateExpressions = ${partialAggregateExpressions.mkString(", ")},
+//         |  aggregateAttributes = ${partialAggregateAttributes.mkString(", ")},
+//         |  resultExpressions = ${partialResultExpressions.mkString(", ")},
+//       """.stripMargin)
+    // Partial
+    //   requiredChildDistributionExpressions = None,
+    //   groupingExpressions = gender#1,
+    //   aggregateExpressions = partial_count(1), partial_avg(age#0L),
+    //   aggregateAttributes = count#16L, sum#17, count#18L,
+    //   resultExpressions = gender#1, count#19L, sum#20, count#21L,
 
     val partialAggregate = createAggregate(
         requiredChildDistributionExpressions = None,
@@ -108,6 +132,22 @@ object AggUtils {
     // The attributes of the final aggregation buffer, which is presented as input to the result
     // projection:
     val finalAggregateAttributes = finalAggregateExpressions.map(_.resultAttribute)
+
+//    println(
+//      s"""
+//         |Final
+//         |  requiredChildDistributionExpressions = ${groupingAttributes.mkString(", ")},
+//         |  groupingExpressions = ${groupingAttributes.mkString(", ")},
+//         |  aggregateExpressions = ${finalAggregateExpressions.mkString(", ")},
+//         |  aggregateAttributes = ${finalAggregateAttributes.mkString(", ")},
+//         |  resultExpressions = ${resultExpressions.mkString(", ")},
+//       """.stripMargin)
+    // Final
+    //   requiredChildDistributionExpressions = gender#1,
+    //   groupingExpressions = gender#1,
+    //   aggregateExpressions = count(1), avg(age#0L),
+    //   aggregateAttributes = count(1)#8L, avg(age#0L)#9,
+    //   resultExpressions = count(1)#8L AS count(1)#10L, avg(age#0L)#9 AS avg(age)#11, gender#1,
 
     val finalAggregate = createAggregate(
         requiredChildDistributionExpressions = Some(groupingAttributes),

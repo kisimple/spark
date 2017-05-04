@@ -191,6 +191,7 @@ object Partitioning {
 
 case class UnknownPartitioning(numPartitions: Int) extends Partitioning {
   override def satisfies(required: Distribution): Boolean = required match {
+    //// 默认的 outputPartitioning 可以满足默认的 requiredChildDistribution
     case UnspecifiedDistribution => true
     case _ => false
   }

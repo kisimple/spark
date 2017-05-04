@@ -64,6 +64,7 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
    */
   object SpecialLimits extends Strategy {
     override def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
+      //// ReturnAnswer 只被这个策略用到了
       case logical.ReturnAnswer(rootPlan) => rootPlan match {
         case logical.Limit(IntegerLiteral(limit), logical.Sort(order, true, child)) =>
           execution.TakeOrderedAndProjectExec(limit, order, child.output, planLater(child)) :: Nil

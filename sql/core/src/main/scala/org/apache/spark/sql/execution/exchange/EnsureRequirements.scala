@@ -155,6 +155,10 @@ case class EnsureRequirements(conf: SQLConf) extends Rule[SparkPlan] {
     assert(requiredChildDistributions.length == children.length)
     assert(requiredChildOrderings.length == children.length)
 
+    ////////////////////////////////////////////////////////////
+    //// 1. 确保所有子节点的 outputPartitioning
+    ////    可以 satisfies requiredChildDistributions
+    ////////////////////////////////////////////////////////////
     // Ensure that the operator's children satisfy their output distribution requirements:
     children = children.zip(requiredChildDistributions).map {
       case (child, distribution) if child.outputPartitioning.satisfies(distribution) =>
@@ -162,9 +166,15 @@ case class EnsureRequirements(conf: SQLConf) extends Rule[SparkPlan] {
       case (child, BroadcastDistribution(mode)) =>
         BroadcastExchangeExec(mode, child)
       case (child, distribution) =>
+        //// 生成新的 outputPartitioning
+        //// spark.sql.shuffle.partitions
         ShuffleExchange(createPartitioning(distribution, defaultNumPreShufflePartitions), child)
     }
 
+    ////////////////////////////////////////////////////////////
+    //// 2. 确保所有子节点的 outputPartitioning
+    ////    可以相互 compatibleWith
+    ////////////////////////////////////////////////////////////
     // If the operator has multiple children and specifies child output distributions (e.g. join),
     // then the children's output partitionings must be compatible:
     def requireCompatiblePartitioning(distribution: Distribution): Boolean = distribution match {
@@ -223,6 +233,9 @@ case class EnsureRequirements(conf: SQLConf) extends Rule[SparkPlan] {
       }
     }
 
+    ////////////////////////////////////////////////////////////
+    //// 3. ExchangeCoordinator
+    ////////////////////////////////////////////////////////////
     // Now, we need to add ExchangeCoordinator if necessary.
     // Actually, it is not a good idea to add ExchangeCoordinators while we are adding Exchanges.
     // However, with the way that we plan the query, we do not have a place where we have a
@@ -232,6 +245,10 @@ case class EnsureRequirements(conf: SQLConf) extends Rule[SparkPlan] {
     // we can first add Exchanges and then add coordinator once we have a DAG of query fragments.
     children = withExchangeCoordinator(children, requiredChildDistributions)
 
+    ////////////////////////////////////////////////////////////
+    //// 4. 确保所有子节点的 outputOrdering
+    ////    可以 semanticEquals requiredChildOrderings
+    ////////////////////////////////////////////////////////////
     // Now that we've performed any necessary shuffles, add sorts to guarantee output orderings:
     children = children.zip(requiredChildOrderings).map { case (child, requiredOrdering) =>
       if (requiredOrdering.nonEmpty) {
@@ -246,6 +263,7 @@ case class EnsureRequirements(conf: SQLConf) extends Rule[SparkPlan] {
         }
 
         if (!orderingMatched) {
+          //// 插入 SortExec
           SortExec(requiredOrdering, global = false, child = child)
         } else {
           child

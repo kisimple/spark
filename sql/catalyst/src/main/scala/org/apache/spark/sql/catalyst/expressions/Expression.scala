@@ -81,6 +81,7 @@ abstract class Expression extends TreeNode[Expression] {
 
   def nullable: Boolean
 
+  //// 只有 Attribute/AggregateExpression 等有重载
   def references: AttributeSet = AttributeSet(children.flatMap(_.references.iterator))
 
   /** Returns the result of evaluating this expression on a given input Row */
