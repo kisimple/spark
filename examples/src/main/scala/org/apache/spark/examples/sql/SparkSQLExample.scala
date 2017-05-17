@@ -50,10 +50,33 @@ object SparkSQLExample {
     import spark.implicits._
     // $example off:init_session$
 
-    runBasicDataFrameExample(spark)
-    runDatasetCreationExample(spark)
-    runInferSchemaExample(spark)
-    runProgrammaticSchemaExample(spark)
+//    spark.sql("""
+//      |CREATE TEMPORARY VIEW oneToTenFiltered
+//      |USING org.apache.spark.examples.sql.FilteredScanSource
+//      |OPTIONS (
+//      |  from '1',
+//      |  to '10'
+//      |)
+//      """.stripMargin)
+//    spark.sql("SELECT a, B FROM oneToTenFiltered WHERE a>1").show(20)
+
+    spark.read.json("examples/src/main/resources/people.json").createOrReplaceTempView("people")
+
+    val df = spark.sql("SELECT * FROM people WHERE age > 18 ORDER BY age LIMIT 20")
+    val qe = df.queryExecution
+
+//    println(qe.optimizedPlan)
+//
+//    println(qe.sparkPlan)
+//
+//    println(qe.executedPlan)
+
+     df.show()
+
+    // runBasicDataFrameExample(spark)
+    // runDatasetCreationExample(spark)
+    // runInferSchemaExample(spark)
+    // runProgrammaticSchemaExample(spark)
 
     spark.stop()
   }
