@@ -27,7 +27,7 @@ import org.apache.spark.sql.SparkSession
 // scalastyle:off println
 object TeraSort {
 
-  implicit val bytesOrdering : Comparator[Array[Byte]] =
+  implicit val caseInsensitiveOrdering : Comparator[Array[Byte]] =
     UnsignedBytes.lexicographicalComparator()
 
   def main(args: Array[String]) {

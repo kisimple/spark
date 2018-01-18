@@ -71,7 +71,7 @@ class TeraInputFormat extends FileInputFormat[Array[Byte], Array[Byte]] {
       while (read < TeraInputFormat.RECORD_LEN) {
         var newRead : Int = in.read(buffer, read, TeraInputFormat.RECORD_LEN - read)
         if (newRead == -1) {
-          if (read == 0)
+          if (read == 0) return false
           else throw new EOFException("read past eof")
         }
         read += newRead
