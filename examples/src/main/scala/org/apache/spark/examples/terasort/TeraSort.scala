@@ -51,7 +51,7 @@ object TeraSort {
     val sc = spark.sparkContext
 
     val inputFiles = sc.newAPIHadoopFile[Array[Byte], Array[Byte], TeraInputFormat](inputPath)
-    val partitioner = new RangePartitioner(inputFiles.partitions.length, inputFiles, true)
+    val partitioner = new RangePartitioner(sc.defaultParallelism, inputFiles, true)
     val sortedRDD = inputFiles.repartitionAndSortWithinPartitions(partitioner)
     sortedRDD.saveAsNewAPIHadoopFile[TeraOutputFormat](outputPath)
 
