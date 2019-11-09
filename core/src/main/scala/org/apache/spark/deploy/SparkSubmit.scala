@@ -669,6 +669,83 @@ object SparkSubmit {
       printStream.println(s"System properties:\n${sysProps.mkString("\n")}")
       printStream.println(s"Classpath elements:\n${childClasspath.mkString("\n")}")
       printStream.println("\n")
+      ////////// 示例输出 yarn-cluster
+      // Main class:
+      // org.apache.spark.deploy.yarn.Client
+      // Arguments:
+      // --jar
+      // file:/data/usr/hdp/2.2.0.0-2041/spark-2.1.0-bin-hadoop2.7/examples/jars/spark-examples_2.11-2.1.0.jar
+      // --class
+      // org.apache.spark.examples.SparkPi
+      // --arg
+      // 10
+      // System properties:
+      // spark.yarn.queue -> default
+      // spark.history.kerberos.enabled -> false
+      // spark.history.kerberos.principal -> none
+      // spark.hadoop.yarn.timeline-service.enabled -> false
+      // spark.driver.memory -> 8g
+      // spark.executor.memory -> 32g
+      // spark.executor.instances -> 72
+      // spark.history.ui.acls.enable -> false
+      // spark.eventLog.enabled -> true
+      // spark.sql.limit.pushdown -> true
+      // spark.history.ui.port -> 18080
+      // SPARK_SUBMIT -> true
+      // spark.driver.cores -> 5
+      // spark.executor.extraJavaOptions -> -XX:+TieredCompilation
+      // spark.app.name -> org.apache.spark.examples.SparkPi
+      // spark.history.fs.logDirectory -> /data/log/tbds/spark/history
+      // spark.yarn.executor.memoryOverhead -> 384
+      // spark.driver.extraJavaOptions -> -Dhdp.version=2.2.0.0-2041 -XX:MaxPermSize=512m
+      // spark.yarn.driver.memoryOverhead -> 384
+      // spark.history.kerberos.keytab -> none
+      // spark.sql.aggregation.pushdown -> true
+      // spark.yarn.am.extraJavaOptions -> -Dhdp.version=2.2.0.0-2041 -XX:MaxPermSize=512m
+      // spark.submit.deployMode -> cluster
+      // spark.executor.extraClassPath -> /data/hermes/hermes-2.1.4/conf/
+      // spark.eventLog.dir -> hdfs://hdfsCluster/tmp/spark-events
+      // spark.master -> yarn
+      // spark.executor.cores -> 5
+      // spark.driver.extraClassPath -> /data/hermes/hermes-2.1.4/conf/
+      // Classpath elements:
+
+      ////////// 示例输出 yarn-client
+      // Main class:
+      // org.apache.spark.examples.SparkPi
+      // Arguments:
+      // 10
+      // System properties:
+      // spark.yarn.queue -> default
+      // spark.history.kerberos.enabled -> false
+      // spark.history.kerberos.principal -> none
+      // spark.hadoop.yarn.timeline-service.enabled -> false
+      // spark.driver.memory -> 4g
+      // spark.executor.memory -> 12g
+      // spark.executor.instances -> 12
+      // spark.history.ui.acls.enable -> false
+      // spark.eventLog.enabled -> true
+      // spark.sql.limit.pushdown -> true
+      // spark.history.ui.port -> 18080
+      // SPARK_SUBMIT -> true
+      // spark.driver.cores -> 5
+      // spark.executor.extraJavaOptions -> -XX:+TieredCompilation
+      // spark.app.name -> org.apache.spark.examples.SparkPi
+      // spark.history.fs.logDirectory -> /data/log/tbds/spark/history
+      // spark.driver.extraJavaOptions -> -Dhdp.version=2.2.0.0-2041 -XX:MaxPermSize=512m
+      // spark.yarn.driver.memoryOverhead -> 384
+      // spark.jars -> file:/data/spark/examples/jars/spark-examples_2.11-2.1.0.jar
+      // spark.history.kerberos.keytab -> none
+      // spark.sql.aggregation.pushdown -> true
+      // spark.yarn.am.extraJavaOptions -> -Dhdp.version=2.2.0.0-2041 -XX:MaxPermSize=512m
+      // spark.submit.deployMode -> client
+      // spark.executor.extraClassPath -> /data/hermes/hermes-realtime/conf
+      // spark.eventLog.dir -> hdfs://hdfsCluster/tmp/spark-events
+      // spark.master -> yarn
+      // spark.executor.cores -> 5
+      // spark.driver.extraClassPath -> /data/hermes/hermes-realtime/conf
+      // Classpath elements:
+      // file:/usr/spark/examples/jars/spark-examples_2.11-2.1.0.jar
     }
     // scalastyle:on println
 

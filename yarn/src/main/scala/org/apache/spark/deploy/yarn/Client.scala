@@ -1009,6 +1009,26 @@ private[spark] class Client(
     logDebug(s"        ${printableCommands.mkString(" ")}")
     logDebug("===============================================================================")
 
+    //// log4j.rootCategory=DEBUG, stdout
+    //// 示例输出 yarn-cluster
+    // [DEBUG] ===============================================================================
+    // [DEBUG] YARN AM launch context:
+    // [DEBUG]     user class: org.apache.spark.examples.SparkPi
+    // [DEBUG]     env:
+    // [DEBUG]         SPARK_YARN_USER_ENV -> SPARK_HOME=/usr/spark
+    // [DEBUG]         CLASSPATH -> /data/hermes/conf<CPS>{{PWD}}<CPS>{{PWD}}/__spark_conf__<CPS>{{PWD}}/__spark_libs__/*<CPS>$HADOOP_CONF_DIR<CPS> ...
+    // [DEBUG]         SPARK_YARN_STAGING_DIR -> hdfs://XXX/user/root/.sparkStaging/application_1487769289076_0097
+    // [DEBUG]         SPARK_USER -> root
+    // [DEBUG]         SPARK_YARN_MODE -> true
+    // [DEBUG]         SPARK_HOME -> /usr/spark
+    // [DEBUG]     resources:
+    // [DEBUG]         __app__.jar -> resource { scheme: "hdfs" host: "xxx" port: -1 file: "/user/root/.sparkStaging/application_1487769289076_0097/spark-examples_2.11-2.1.0.jar" } size: 1950712 timestamp: 1490797437942 type: FILE visibility: PRIVATE
+    // [DEBUG]         __spark_libs__ -> resource { scheme: "hdfs" host: "XXX" port: -1 file: "/user/root/.sparkStaging/application_1487769289076_0097/__spark_libs__5274231261638093337.zip" } size: 317348776 timestamp: 1490797437812 type: ARCHIVE visibility: PRIVATE
+    // [DEBUG]         __spark_conf__ -> resource { scheme: "hdfs" host: "XXX" port: -1 file: "/user/root/.sparkStaging/application_1487769289076_0097/__spark_conf__.zip" } size: 64896 timestamp: 1490797438037 type: ARCHIVE visibility: PRIVATE
+    // [DEBUG]     command:
+    // [DEBUG]         {{JAVA_HOME}}/bin/java -server -Xmx4096m -Djava.io.tmpdir={{PWD}}/tmp '-XX:MaxPermSize=512m' -Dspark.yarn.app.container.log.dir=<LOG_DIR> org.apache.spark.deploy.yarn.ApplicationMaster --class 'org.apache.spark.examples.SparkPi' --jar file:/usr/spark/examples/jars/spark-examples_2.11-2.1.0.jar --arg '10' --properties-file {{PWD}}/__spark_conf__/__spark_conf__.properties 1> <LOG_DIR>/stdout 2> <LOG_DIR>/stderr
+    // [DEBUG] ===============================================================================
+
     // send the acl settings into YARN to control who has access via YARN interfaces
     val securityManager = new SecurityManager(sparkConf)
     amContainer.setApplicationACLs(

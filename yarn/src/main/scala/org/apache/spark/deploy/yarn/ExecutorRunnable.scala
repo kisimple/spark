@@ -82,6 +82,53 @@ private[yarn] class ExecutorRunnable(
     |  resources:
     |${localResources.map { case (k, v) => s"    $k -> $v\n" }.mkString}
     |===============================================================================""".stripMargin
+
+    //// 示例输出
+    // ===============================================================================
+    // YARN executor launch context:
+    //   env:
+    //     SPARK_YARN_USER_ENV -> SPARK_HOME=/usr/hdp/2.2.0.0-2041/spark
+    //     CLASSPATH -> /hermes/conf<CPS>{{PWD}}<CPS>{{PWD}}/__spark_conf__<CPS>{{PWD}}/__spark_libs__/*<CPS>$HADOOP_CONF_DIR<CPS> ...
+    //     SPARK_YARN_STAGING_DIR -> hdfs://XXX/user/root/.sparkStaging/application_1487769289076_0102
+    //     SPARK_USER -> root
+    //     SPARK_YARN_MODE -> true
+    //     SPARK_HOME -> /usr/spark
+    //
+    //   command:
+    //     {{JAVA_HOME}}/bin/java \
+    //       -server \
+    //       -Xmx12288m \
+    //       '-Xms12G' \
+    //       '-XX:ParallelGCThreads=5' \
+    //       '-XX:+TieredCompilation' \
+    //       -Djava.io.tmpdir={{PWD}}/tmp \
+    //       '-Dspark.history.ui.port=18080' \
+    //       -Dspark.yarn.app.container.log.dir=<LOG_DIR> \
+    //       -XX:OnOutOfMemoryError='kill %p' \
+    //       org.apache.spark.executor.CoarseGrainedExecutorBackend \
+    //       --driver-url \
+    //       spark://CoarseGrainedScheduler@10.240.130.32:41092 \
+    //       --executor-id \
+    //       <executorId> \
+    //       --hostname \
+    //       <hostname> \
+    //       --cores \
+    //       5 \
+    //       --app-id \
+    //       application_1487769289076_0102 \
+    //       --user-class-path \
+    //       file:$PWD/__app__.jar \
+    //       1><LOG_DIR>/stdout \
+    //       2><LOG_DIR>/stderr
+    //
+    //   resources:
+    //     __app__.jar -> resource { scheme: "hdfs" host: "XXX" port: -1 file: "/user/root/.sparkStaging/application_1487769289076_0102/spark-examples_2.11-2.1.0.jar" } ...
+    //     __spark_libs__ -> resource { scheme: "hdfs" host: "XXX" port: -1 file: "/user/root/.sparkStaging/application_1487769289076_0102/__spark_libs__5637602616702649877.zip" } ...
+    //     __spark_conf__ -> resource { scheme: "hdfs" host: "XXX" port: -1 file: "/user/root/.sparkStaging/application_1487769289076_0102/__spark_conf__.zip" } ...
+    //
+    // ===============================================================================
+
+    //// unzip -l __spark_conf__.zip
   }
 
   def startContainer(): java.util.Map[String, ByteBuffer] = {
